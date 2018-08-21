@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { IntegrityProxyService } from 'integrity-proxy-lib';
 
 @Component({
   selector: 'app-root',
@@ -7,4 +8,7 @@ import { Component } from '@angular/core';
 })
 export class AppComponent {
   title = 'integrity-proxy-app';
+  constructor(proxy: IntegrityProxyService) {
+    proxy.ping();
+  }
 }

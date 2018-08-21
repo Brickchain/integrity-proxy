@@ -121,6 +121,46 @@
           }
         }
       }
+    },
+    "integrity-proxy-lib": {
+      "root": "projects/integrity-proxy-lib",
+      "sourceRoot": "projects/integrity-proxy-lib/src",
+      "projectType": "library",
+      "prefix": "integrity",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-ng-packagr:build",
+          "options": {
+            "tsConfig": "projects/integrity-proxy-lib/tsconfig.lib.json",
+            "project": "projects/integrity-proxy-lib/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "project": "projects/integrity-proxy-lib/ng-package.prod.json"
+            }
+          }
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "main": "projects/integrity-proxy-lib/src/test.ts",
+            "tsConfig": "projects/integrity-proxy-lib/tsconfig.spec.json",
+            "karmaConfig": "projects/integrity-proxy-lib/karma.conf.js"
+          }
+        },
+        "lint": {
+          "builder": "@angular-devkit/build-angular:tslint",
+          "options": {
+            "tsConfig": [
+              "projects/integrity-proxy-lib/tsconfig.lib.json",
+              "projects/integrity-proxy-lib/tsconfig.spec.json"
+            ],
+            "exclude": [
+              "**/node_modules/**"
+            ]
+          }
+        }
+      }
     }
   },
   "defaultProject": "integrity-proxy-app"

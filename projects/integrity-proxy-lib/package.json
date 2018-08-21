@@ -1,0 +1,10 @@
+{
+  "name": "integrity-proxy-lib",
+  "version": "0.0.1",
+  "peerDependencies": {
+    "@angular/common": "^6.0.0",
+    "@angular/core": "^6.0.0",
+    "json2typescript": "^1.0.6",
+    "uuid": "^3.3.2"
+  }
+}
