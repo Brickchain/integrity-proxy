@@ -9,6 +9,6 @@ import { IntegrityProxyService } from 'integrity-proxy-lib';
 export class AppComponent {
   title = 'integrity-proxy-app';
   constructor(proxy: IntegrityProxyService) {
-    proxy.ping();
+    proxy.initialize('https://proxy.svc-staging.plusintegrity.com');
   }
 }

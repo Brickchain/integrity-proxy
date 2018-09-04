@@ -1,0 +1,1 @@
+Use returned hostname from registration for bulding URLs
