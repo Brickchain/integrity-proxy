@@ -5,8 +5,11 @@ import { Base } from './base.model';
 @JsonObject
 export class HttpResponse extends Base {
 
-  constructor() {
+  constructor(status?: number, body?: string, id?: string) {
     super('https://proxy.brickchain.com/v1/http-response.json');
+    this.status = status;
+    this.body = body;
+    this.id = id;
   }
 
   @JsonProperty('headers', Any, true)

@@ -11,4 +11,7 @@ export class RegistrationResponse extends Base {
   @JsonProperty('keyID', String, true)
   keyID: string = undefined;
 
+  @JsonProperty('hostname', String, true)
+  hostname: string = undefined;
+
 }

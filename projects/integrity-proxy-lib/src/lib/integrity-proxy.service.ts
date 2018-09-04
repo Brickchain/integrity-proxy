@@ -10,50 +10,48 @@ import * as jose from 'node-jose';
 })
 export class IntegrityProxyService {
 
-  private session: string;
-  private base: string;
-  private hostname: string;
+  private socket$: WebSocketSubject<{}>;
+  private handlers: { [path: string]: (request: HttpRequest) => Promise<HttpResponse>; } = {};
+  private resolve: (value?: string | PromiseLike<string>) => void;
 
   private keystore;
   private jsonConvert: JsonConvert;
 
   constructor() {
 
-    this.session = v4();
+    this.keystore = jose.JWK.createKeyStore();
 
     this.jsonConvert = new JsonConvert();
     this.jsonConvert.operationMode = OperationMode.ENABLE; // print some debug data
     this.jsonConvert.ignorePrimitiveChecks = false; // don't allow assigning number to string etc.
     this.jsonConvert.valueCheckingMode = ValueCheckingMode.DISALLOW_NULL; // never allow null
 
-    this.keystore = jose.JWK.createKeyStore();
-
   }
 
-  public initialize(url: string, signedMandateToken?: string) {
-    this.base = url;
-    const subscribeUrl = this.base.replace('https://', 'wss://').replace('http://', 'ws://') + '/proxy/subscribe';
-    // const url = 'wss://echo.websocket.org';
-    const socket$ = webSocket(subscribeUrl);
-    this.createRegistrationRequest(signedMandateToken)
-      .then(request => socket$
-        .multiplex(
-          () => request,
-          () => 'close',
-          (value: {}) => { console.log(value); return true; })
-        .subscribe(
-          this.onMessage,
-          this.onError,
-          this.onComplete));
+  public connect(url: string, signedMandateToken?: string): Promise<string> {
+    const subscribeUrl = url.replace('https://', 'wss://').replace('http://', 'ws://') + '/proxy/subscribe';
+    this.socket$ = webSocket(subscribeUrl);
+    return new Promise<string>((resolve, reject) => {
+      this.resolve = resolve;
+      this.createRegistrationRequest(url, signedMandateToken)
+        .then(request => this.socket$
+          .multiplex(
+            () => request,
+            () => 'close',
+            (value: {}) => { console.log(value); return true; })
+          .subscribe(
+            (message: {}) => this.onMessage(message),
+            (error: any) => reject(error)));
+    });
   }
 
-  private async createRegistrationRequest(signedMandateToken?: string): Promise<string> {
+  private async createRegistrationRequest(url: string, signedMandateToken?: string): Promise<string> {
 
     if (!signedMandateToken) {
 
       const mandateToken = new MandateToken();
       mandateToken.timestamp = new Date();
-      mandateToken.uri = this.base;
+      mandateToken.uri = url;
       mandateToken.mandates = [];
       mandateToken.ttl = 60;
 
@@ -67,7 +65,7 @@ export class IntegrityProxyService {
 
     const registrationRequest = new RegistrationRequest();
     registrationRequest.mandateToken = signedMandateToken;
-    registrationRequest.session = this.session;
+    registrationRequest.session = v4();
 
     return this.jsonConvert.serializeObject(registrationRequest);
 
@@ -79,8 +77,32 @@ export class IntegrityProxyService {
         break;
       case 'https://proxy.brickchain.com/v1/registration-response.json':
         const registrationResponse = <RegistrationResponse>this.jsonConvert.deserializeObject(message, RegistrationResponse);
-        console.log(registrationResponse);
-        this.hostname = this.hostname;
+        this.resolve(registrationResponse.hostname);
+        break;
+      case 'https://proxy.brickchain.com/v1/http-request.json':
+        const req = <HttpRequest>this.jsonConvert.deserializeObject(message, HttpRequest);
+        if (this.handlers[req.url] !== undefined) {
+          if (req.method === 'OPTIONS') {
+            const res = new HttpResponse(200, 'OK', req.id);
+            res.headers = {
+              'Access-Control-Allow-Origin': req.headers['Origin'],
+              'Access-Control-Allow-Headers': 'Accept, Accept-Language, Content-Language, Content-Type'
+            };
+            this.socket$.next(this.jsonConvert.serializeObject(res));
+          } else {
+            this.handlers[req.url](req).then((res: HttpResponse) => {
+              res.id = req.id;
+              res.headers = {
+                'Access-Control-Allow-Origin': req.headers['Origin'],
+                'Access-Control-Allow-Headers': 'Accept, Accept-Language, Content-Language, Content-Type'
+              };
+              this.socket$.next(this.jsonConvert.serializeObject(res));
+            });
+          }
+        } else {
+          const res = new HttpResponse(404, 'Not found', req.id);
+          this.socket$.next(this.jsonConvert.serializeObject(res));
+        }
         break;
       default:
         console.warn('Unsupported message type', message);
@@ -88,12 +110,9 @@ export class IntegrityProxyService {
     }
   }
 
-  private onError(error: any) {
-    console.log('onError', error);
-  }
-
-  private onComplete() {
-    console.log('onComplete');
+  public handlePath(path: string, handler: (request: HttpRequest) => Promise<HttpResponse>): IntegrityProxyService {
+    this.handlers[path] = handler;
+    return this;
   }
 
 }
