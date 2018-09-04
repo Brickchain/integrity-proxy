@@ -22,6 +22,7 @@
     "@angular/router": "^6.1.0",
     "core-js": "^2.5.4",
     "json2typescript": "^1.0.6",
+    "node-jose": "^1.0.0",
     "rxjs": "^6.0.0",
     "uuid": "^3.3.2",
     "zone.js": "~0.8.26"

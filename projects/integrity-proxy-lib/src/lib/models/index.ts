@@ -1,3 +1,4 @@
+export { MandateToken } from './mandate-token.model';
 export { HttpRequest } from './http-request.model';
 export { HttpResponse } from './http-response.model';
 export { RegistrationRequest } from './registration-request.model';
