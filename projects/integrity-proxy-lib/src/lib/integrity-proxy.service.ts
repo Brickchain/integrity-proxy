@@ -38,11 +38,15 @@ export class IntegrityProxyService {
           .multiplex(
             () => request,
             () => 'close',
-            (value: {}) => { console.log(value); return true; })
+            () => true)
           .subscribe(
             (message: {}) => this.onMessage(message),
             (error: any) => reject(error)));
     });
+  }
+
+  public disconnect() {
+    this.socket$.unsubscribe();
   }
 
   private async createRegistrationRequest(url: string, signedMandateToken?: string): Promise<string> {
@@ -55,7 +59,7 @@ export class IntegrityProxyService {
       mandateToken.mandates = [];
       mandateToken.ttl = 60;
 
-      const key = await this.keystore.generate('EC', 'P-256');
+      const key = await this.keystore.generate('EC', 'P-256'); // Re-use key on reconnect, no ping for 20 seconds...reconnect
 
       signedMandateToken = await jose.JWS.createSign({ format: 'compact' }, { key: key, reference: 'jwk' })
         .update(JSON.stringify(this.jsonConvert.serializeObject(mandateToken)), 'utf8')
@@ -65,14 +69,15 @@ export class IntegrityProxyService {
 
     const registrationRequest = new RegistrationRequest();
     registrationRequest.mandateToken = signedMandateToken;
-    registrationRequest.session = v4();
+    registrationRequest.session = v4(); // Salts the key to create hostname, re-use of reconnecting
 
     return this.jsonConvert.serializeObject(registrationRequest);
 
   }
 
   private onMessage(message: {}) {
-    switch (message['@type']) {
+      // Todo: reset re-connect timer on each message
+      switch (message['@type']) {
       case 'https://proxy.brickchain.com/v1/ping.json':
         break;
       case 'https://proxy.brickchain.com/v1/registration-response.json':
@@ -101,6 +106,10 @@ export class IntegrityProxyService {
           }
         } else {
           const res = new HttpResponse(404, 'Not found', req.id);
+          res.headers = {
+            'Access-Control-Allow-Origin': req.headers['Origin'],
+            'Access-Control-Allow-Headers': 'Accept, Accept-Language, Content-Language, Content-Type'
+          };
           this.socket$.next(this.jsonConvert.serializeObject(res));
         }
         break;
@@ -110,8 +119,13 @@ export class IntegrityProxyService {
     }
   }
 
-  public handlePath(path: string, handler: (request: HttpRequest) => Promise<HttpResponse>): IntegrityProxyService {
+  public setHandler(path: string, handler: (request: HttpRequest) => Promise<HttpResponse>): IntegrityProxyService {
     this.handlers[path] = handler;
+    return this;
+  }
+
+  public removeHandler(path: string): IntegrityProxyService {
+    delete this.handlers[path];
     return this;
   }
 
