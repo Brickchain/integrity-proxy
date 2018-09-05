@@ -106,7 +106,7 @@ export class IntegrityProxyService {
         const req = <HttpRequest>this.jsonConvert.deserializeObject(message, HttpRequest);
         if (this.handlers[req.url] !== undefined) {
           if (req.method === 'OPTIONS') {
-            const res = new HttpResponse(200, 'OK', req.id);
+            const res = new HttpResponse(200, 'OK', 'text/plain', req.id);
             res.headers = {
               'Access-Control-Allow-Origin': req.headers['Origin'],
               'Access-Control-Allow-Headers': 'Accept, Accept-Language, Content-Language, Content-Type'
@@ -119,11 +119,14 @@ export class IntegrityProxyService {
                 'Access-Control-Allow-Origin': req.headers['Origin'],
                 'Access-Control-Allow-Headers': 'Accept, Accept-Language, Content-Language, Content-Type'
               };
+              if (res.contentType) {
+                res.headers['Content-Type'] = res.contentType;
+              }
               this.socket$.next(this.jsonConvert.serializeObject(res));
             });
           }
         } else {
-          const res = new HttpResponse(404, 'Not found', req.id);
+          const res = new HttpResponse(404, 'Not found', 'text/plain', req.id);
           res.headers = {
             'Access-Control-Allow-Origin': req.headers['Origin'],
             'Access-Control-Allow-Headers': 'Accept, Accept-Language, Content-Language, Content-Type'
