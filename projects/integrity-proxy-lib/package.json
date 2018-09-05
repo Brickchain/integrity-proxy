@@ -1,9 +1,10 @@
 {
-  "name": "integrity-proxy-lib",
-  "version": "0.0.1",
+  "name": "@brickchain/integrity-proxy-lib",
+  "version": "0.0.2",
   "peerDependencies": {
     "@angular/common": "^6.0.0",
     "@angular/core": "^6.0.0",
+    "buffer": "^5.2.1",
     "json2typescript": "^1.0.6",
     "node-jose": "^1.0.0",
     "uuid": "^3.3.2"

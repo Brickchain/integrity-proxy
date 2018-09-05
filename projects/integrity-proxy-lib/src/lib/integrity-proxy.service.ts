@@ -5,14 +5,25 @@ import { MandateToken, HttpRequest, HttpResponse, RegistrationRequest, Registrat
 import { v4 } from 'uuid/v4';
 import * as jose from 'node-jose';
 
+export interface Options {
+  key?: any;
+  session?: string;
+  useSession?: boolean;
+  signedMandateToken?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class IntegrityProxyService {
 
-  private socket$: WebSocketSubject<{}>;
+  private url: string;
+  private options: Options;
   private handlers: { [path: string]: (request: HttpRequest) => Promise<HttpResponse>; } = {};
+
+  private socket$: WebSocketSubject<{}>;
   private resolve: (value?: string | PromiseLike<string>) => void;
+  private reject: (reason?: any) => void;
 
   private keystore;
   private jsonConvert: JsonConvert;
@@ -28,30 +39,26 @@ export class IntegrityProxyService {
 
   }
 
-  public connect(url: string, signedMandateToken?: string): Promise<string> {
-    const subscribeUrl = url.replace('https://', 'wss://').replace('http://', 'ws://') + '/proxy/subscribe';
-    this.socket$ = webSocket(subscribeUrl);
+  public connect(url: string, options: Options = {}): Promise<string> {
+
+    this.socket$ = webSocket(url.replace('https://', 'wss://').replace('http://', 'ws://') + '/proxy/subscribe');
+    this.socket$.subscribe((message: {}) => this.onMessage(message), (error: any) => this.onError(error), () => this.onComplete());
+
     return new Promise<string>((resolve, reject) => {
       this.resolve = resolve;
-      this.createRegistrationRequest(url, signedMandateToken)
-        .then(request => this.socket$
-          .multiplex(
-            () => request,
-            () => 'close',
-            () => true)
-          .subscribe(
-            (message: {}) => this.onMessage(message),
-            (error: any) => reject(error)));
+      this.reject = reject;
+      this.createRegistrationRequest(url, options).then(request => this.socket$.next(request));
     });
+
   }
 
   public disconnect() {
     this.socket$.unsubscribe();
   }
 
-  private async createRegistrationRequest(url: string, signedMandateToken?: string): Promise<string> {
+  private async createRegistrationRequest(url: string, options: Options): Promise<string> {
 
-    if (!signedMandateToken) {
+    if (!options.signedMandateToken) {
 
       const mandateToken = new MandateToken();
       mandateToken.timestamp = new Date();
@@ -59,29 +66,40 @@ export class IntegrityProxyService {
       mandateToken.mandates = [];
       mandateToken.ttl = 60;
 
-      const key = await this.keystore.generate('EC', 'P-256'); // Re-use key on reconnect, no ping for 20 seconds...reconnect
+      if (!options.key) {
+        options.key = await this.keystore.generate('EC', 'P-256');
+      }
 
-      signedMandateToken = await jose.JWS.createSign({ format: 'compact' }, { key: key, reference: 'jwk' })
+      options.signedMandateToken = await jose.JWS.createSign({ format: 'compact' }, { key: options.key, reference: 'jwk' })
         .update(JSON.stringify(this.jsonConvert.serializeObject(mandateToken)), 'utf8')
         .final();
 
     }
 
+    if (options.useSession && !options.session) {
+      options.session = v4();
+    }
+
     const registrationRequest = new RegistrationRequest();
-    registrationRequest.mandateToken = signedMandateToken;
-    registrationRequest.session = v4(); // Salts the key to create hostname, re-use of reconnecting
+    registrationRequest.mandateToken = options.signedMandateToken;
+    if (options.useSession) {
+      registrationRequest.session = options.session;
+    }
+
+    this.url = url;
+    this.options = options;
 
     return this.jsonConvert.serializeObject(registrationRequest);
 
   }
 
   private onMessage(message: {}) {
-      // Todo: reset re-connect timer on each message
-      switch (message['@type']) {
+    switch (message['@type']) {
       case 'https://proxy.brickchain.com/v1/ping.json':
         break;
       case 'https://proxy.brickchain.com/v1/registration-response.json':
         const registrationResponse = <RegistrationResponse>this.jsonConvert.deserializeObject(message, RegistrationResponse);
+        this.reject = undefined;
         this.resolve(registrationResponse.hostname);
         break;
       case 'https://proxy.brickchain.com/v1/http-request.json':
@@ -97,7 +115,7 @@ export class IntegrityProxyService {
           } else {
             this.handlers[req.url](req).then((res: HttpResponse) => {
               res.id = req.id;
-              res.headers = {
+              res.headers = res.headers || {
                 'Access-Control-Allow-Origin': req.headers['Origin'],
                 'Access-Control-Allow-Headers': 'Accept, Accept-Language, Content-Language, Content-Type'
               };
@@ -117,6 +135,15 @@ export class IntegrityProxyService {
         console.warn('Unsupported message type', message);
         break;
     }
+  }
+
+  private onError(error: any) {
+    if (this.reject) {
+      this.reject(error);
+    }
+  }
+
+  private onComplete() {
   }
 
   public setHandler(path: string, handler: (request: HttpRequest) => Promise<HttpResponse>): IntegrityProxyService {

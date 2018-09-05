@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { IntegrityProxyService } from 'integrity-proxy-lib';
+import { HttpRequest, HttpResponse } from 'integrity-proxy-lib';
 
 @Component({
   selector: 'app-root',
@@ -8,7 +9,14 @@ import { IntegrityProxyService } from 'integrity-proxy-lib';
 })
 export class AppComponent {
   title = 'integrity-proxy-app';
+  hostname: string;
   constructor(proxy: IntegrityProxyService) {
-    proxy.initialize('https://proxy.svc-staging.plusintegrity.com');
+    proxy
+      .setHandler('/test', (request: HttpRequest) => {
+        console.log(request);
+        return Promise.resolve(new HttpResponse(200, '"OK"'));
+      })
+      .connect('https://proxy.svc-staging.plusintegrity.com')
+      .then(hostname => this.hostname = hostname);
   }
 }

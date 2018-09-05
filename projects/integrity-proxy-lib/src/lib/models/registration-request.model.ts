@@ -11,7 +11,7 @@ export class RegistrationRequest extends Base {
   @JsonProperty('mandateToken', String, true)
   mandateToken: string = undefined;
 
-  @JsonProperty('session', String, false)
+  @JsonProperty('session', String, true)
   session: string = undefined;
 
 }

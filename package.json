@@ -9,6 +9,9 @@
     "lint": "ng lint",
     "e2e": "ng e2e"
   },
+  "browser": {
+    "zlib": false
+  },
   "private": true,
   "dependencies": {
     "@angular/animations": "^6.1.0",
@@ -20,6 +23,7 @@
     "@angular/platform-browser": "^6.1.0",
     "@angular/platform-browser-dynamic": "^6.1.0",
     "@angular/router": "^6.1.0",
+    "buffer": "^5.2.1",
     "core-js": "^2.5.4",
     "json2typescript": "^1.0.6",
     "node-jose": "^1.0.0",
