@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { webSocket, WebSocketSubject } from 'rxjs/websocket';
+import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { JsonConvert, OperationMode, ValueCheckingMode } from 'json2typescript';
 import { MandateToken, HttpRequest, HttpResponse, RegistrationRequest, RegistrationResponse } from './models';
 import { v4 } from 'uuid/v4';
