@@ -10,6 +10,7 @@ import { HttpRequest, HttpResponse } from 'integrity-proxy-lib';
 export class AppComponent {
   title = 'integrity-proxy-app';
   hostname: string;
+  base: string;
   constructor(proxy: IntegrityProxyService) {
     proxy
       .setHandler('/test', (request: HttpRequest) => {
@@ -17,6 +18,7 @@ export class AppComponent {
         return Promise.resolve(new HttpResponse(200, '"OK"'));
       })
       .connect('https://proxy.svc-staging.plusintegrity.com')
-      .then(hostname => this.hostname = hostname);
+      .then(hostname => this.hostname = hostname)
+      .then(base => this.base = proxy.base);
   }
 }

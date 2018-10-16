@@ -17,8 +17,10 @@ export interface Options {
 })
 export class IntegrityProxyService {
 
-  private url: string;
-  private options: Options;
+  private _url: string;
+  private _base: string;
+  private _hostname: string;
+
   private handlers: { [path: string]: (request: HttpRequest) => Promise<HttpResponse>; } = {};
 
   private socket$: WebSocketSubject<{}>;
@@ -86,8 +88,7 @@ export class IntegrityProxyService {
       registrationRequest.session = options.session;
     }
 
-    this.url = url;
-    this.options = options;
+    this._url = url;
 
     return this.jsonConvert.serializeObject(registrationRequest);
 
@@ -100,7 +101,9 @@ export class IntegrityProxyService {
       case 'https://proxy.brickchain.com/v1/registration-response.json':
         const registrationResponse = <RegistrationResponse>this.jsonConvert.deserializeObject(message, RegistrationResponse);
         this.reject = undefined;
-        this.resolve(registrationResponse.hostname);
+        this._base = `${this._url}/proxy/request/${registrationResponse.keyID}`;
+        this._hostname = registrationResponse.hostname;
+        this.resolve(this._hostname);
         break;
       case 'https://proxy.brickchain.com/v1/http-request.json':
         const req = <HttpRequest>this.jsonConvert.deserializeObject(message, HttpRequest);
@@ -157,6 +160,18 @@ export class IntegrityProxyService {
   public removeHandler(path: string): IntegrityProxyService {
     delete this.handlers[path];
     return this;
+  }
+
+  get url(): string {
+    return this._url;
+  }
+
+  get base(): string {
+    return this._base;
+  }
+
+  get hostname(): string {
+    return this._hostname;
   }
 
 }
