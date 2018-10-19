@@ -15,7 +15,7 @@ export class AppComponent {
     proxy
       .setHandler('/test', (request: HttpRequest) => {
         console.log(request);
-        return Promise.resolve(new HttpResponse(200, '"OK"'));
+        return Promise.resolve(new HttpResponse(200, '"OK åäö"'));
       })
       .connect('https://proxy.svc-staging.plusintegrity.com')
       .then(hostname => this.hostname = hostname)
